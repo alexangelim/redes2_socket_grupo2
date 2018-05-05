@@ -23,7 +23,7 @@ uses
   cxContainer, cxEdit, cxListBox;
 
 type
-  TChatFal = class(TForm)
+  TFormCliente = class(TForm)
     C_Comandos: TGroupBox;
     C_Texto: TEdit;
     Host: TEdit;
@@ -33,7 +33,6 @@ type
     S_Cliente: TClientSocket;
     Status: TMemo;
     Quadro: TMemo;
-    S_Server: TServerSocket;
     Apelido: TEdit;
     Label1: TLabel;
     dxAlert: TdxAlertWindowManager;
@@ -44,11 +43,9 @@ type
     procedure S_ClienteRead(Sender: TObject; Socket: TCustomWinSocket);
     procedure ConectarClick(Sender: TObject);
     procedure C_TextoKeyDown(Sender: TObject; var Key: Word;  Shift: TShiftState);
-    procedure ServirClick(Sender: TObject);
     procedure S_ServerListen(Sender: TObject; Socket: TCustomWinSocket);
     procedure S_ServerClientConnect(Sender: TObject; Socket: TCustomWinSocket);
     procedure S_ServerClientDisconnect(Sender: TObject; Socket: TCustomWinSocket);
-    procedure S_ServerClientRead(Sender: TObject; Socket: TCustomWinSocket);
     procedure FormCreate(Sender: TObject);
   private
     { Private declarations }
@@ -57,13 +54,13 @@ type
   end;
 
 var
-  ChatFal: TChatFal;
+  FormCliente: TFormCliente;
 implementation
 
 {$R *.dfm}
 
 {Procedimento de conexão do cliente ao servidor }
-procedure TChatFal.S_ClienteConnect(Sender: TObject;
+procedure TFormCliente.S_ClienteConnect(Sender: TObject;
   Socket: TCustomWinSocket);
 begin
   Status.Lines.Add('Cliente  ::> Conectado a: ' + S_Cliente.Host);
@@ -73,7 +70,7 @@ begin
 end;
 
 {Procedimento de desconexão do cliente com o servidor }
-procedure TChatFal.S_ClienteDisconnect(Sender: TObject; Socket: TCustomWinSocket);
+procedure TFormCliente.S_ClienteDisconnect(Sender: TObject; Socket: TCustomWinSocket);
 begin
   Status.Lines.Add('Cliente  ::> Desconectado ');
     Conectar.Caption := 'Conectar';
@@ -81,21 +78,27 @@ begin
 end;
 
 {Procedimento de ERRO de conexão }
-procedure TChatFal.S_ClienteError(Sender: TObject; Socket: TCustomWinSocket; ErrorEvent: TErrorEvent; var ErrorCode: Integer);
+procedure TFormCliente.S_ClienteError(Sender: TObject; Socket: TCustomWinSocket; ErrorEvent: TErrorEvent; var ErrorCode: Integer);
 begin
   Status.Lines.Add('Cliente  ::> ERRO ao tentar conectar a: ' + S_Cliente.Host);
 end;
 
-procedure TChatFal.S_ClienteRead(Sender: TObject; Socket: TCustomWinSocket);
+procedure TFormCliente.S_ClienteRead(Sender: TObject; Socket: TCustomWinSocket);
+  var
+    Mensagem : string;
 begin
-  Quadro.Lines.Add(Socket.ReceiveText);
+  Mensagem := Socket.ReceiveText;
+
+  Quadro.Lines.Add(Mensagem);
+  if Pos('entrou', Mensagem) > 0 then
+    cxListBox1.Items.Add(Copy(Mensagem, 1,Pos('entrou', Mensagem)-1));
 end;
 
 {Ao clicar no botão "CONECTAR" o programa pega o IP digitado no campo
 { De servidor e tenta conectar ao servidor, caso de ERRO ele vai executar
 { o procedimento de ERRO de conexão, caso ocorra sucesso de conexão ele vai
 { executar o procedimento OnConnect}
-procedure TChatFal.ConectarClick(Sender: TObject);
+procedure TFormCliente.ConectarClick(Sender: TObject);
 begin
   if S_Cliente.Active then
   begin
@@ -112,7 +115,7 @@ end;
 { Este Procedimento serve para quando for digitado a tecla [ENTER] envie
 { o texto do campo de MENSAGEM para  o servidor, facilitando o uso
 { do chat.}
-procedure TChatFal.C_TextoKeyDown(Sender: TObject; var Key: Word;  Shift: TShiftState);
+procedure TFormCliente.C_TextoKeyDown(Sender: TObject; var Key: Word;  Shift: TShiftState);
 begin
   if Key = VK_Return then
   begin
@@ -121,93 +124,30 @@ begin
   end;
 end;
 
-{Clicando no botão "Iniciar Servidor" O programa vira servidor de CHAT
-{para que outros Clientes possam conectar nele. Para facilitar, automaticamente
-{ o programa se conecta no proprio server, e desabilita os campos de conexão
-{ para evitar conflito.}
-procedure TChatFal.ServirClick(Sender: TObject);
-begin
-  if S_Server.Active = True then
-  begin
-    S_Server.Active := False;
-    Status.Lines.Add('Servidor ::> Servidor Desligado!');
-    Servir.Caption := 'Iniciar Servidor';
-    S_Cliente.Active := False;
-    Host.Enabled := True;
-    Conectar.Enabled := True;
-  end
-  else
-  begin
-    S_Server.Active := True;
-    Servir.Caption := 'Parar Servidor';
-    Host.Enabled := False;
-    Conectar.Enabled := False;
-    S_Cliente.Host := '127.0.0.1';
-    S_Cliente.Active := True;
-   end;
-end;
-
 { Procedimento executado logo apos o server começar a escutar a porta Padrão
 { Uma mensagem eh enviada para a tela de status}
-procedure TChatFal.S_ServerListen(Sender: TObject;
+procedure TFormCliente.S_ServerListen(Sender: TObject;
   Socket: TCustomWinSocket);
 begin
- Status.Lines.Add('Servidor ::> Servidor Ligado!');
+  Status.Lines.Add('Servidor ::> Servidor Ligado!');
 end;
 
 { Procedimento do Servidor para quando um cliente se conecta}
-procedure TChatFal.S_ServerClientConnect(Sender: TObject;
+procedure TFormCliente.S_ServerClientConnect(Sender: TObject;
   Socket: TCustomWinSocket);
 begin
-   Status.Lines.Add('Servidor ::> Usuário Conectado => '+ Socket.RemoteAddress);
+  Status.Lines.Add('Servidor ::> Usuário Conectado => '+ Socket.RemoteAddress);
 end;
 
 { Procedimento do Servidor para quando um cliente se desconecta}
-procedure TChatFal.S_ServerClientDisconnect(Sender: TObject;
+procedure TFormCliente.S_ServerClientDisconnect(Sender: TObject;
   Socket: TCustomWinSocket);
 begin
    Status.Lines.Add('Servidor ::> Usuário Desconectado => '+ Socket.RemoteAddress);
 end;
 
 { Procedimento executado quando o servidor recebe dados dos clientes }
-procedure TChatFal.S_ServerClientRead(Sender: TObject;
-  Socket: TCustomWinSocket);
-var texto: array[0..1] of string;
-    temptexto: string;
-    Index: integer;
-begin
-   temptexto := Socket.ReceiveText;
-   texto[0] := Copy(temptexto, 1,Pos('::::', temptexto) -1);
-   texto[1] := Copy(temptexto, Pos('::::', temptexto) + Length('::::'),Length(temptexto));
-   if texto[0] = 'NICK' then {Verifica se a mensagem eh de entrada}
-   begin
-    with S_Server.Socket do
-    begin {Se a msg for de entrada avisa a todos os clientes quem entrou }
-      for Index := 0 to ActiveConnections-1 do
-      begin
-        Connections[Index].SendText(texto[1] + ' entrou na sala: ');
-      end;
-    end;
-    cxListBox1.Items.Add(texto[1]);
-    if not(ChatFal.Active) then
-     dxAlert.Show(texto[1]+' entrou','',0);
-   end
-   else
-   begin
-    with S_Server.Socket do
-    begin {Se nao for de entrada, então eh msg normal, no caso passa para todos a msg}
-    for Index := 0 to ActiveConnections-1 do
-    begin
-      Connections[Index].SendText('(' + texto[1] + ') escreveu: ' + texto[0]);
-    end;
-    end;
-   Status.Lines.Add('Servidor ::> ' + texto[1] + ' (' + Socket.RemoteAddress + ') escreveu: '+ texto[0]);
-   if not(ChatFal.Active) then
-     dxAlert.Show(texto[1]+' disse',texto[0],0);
-   end;
-
-end;
-procedure TChatFal.FormCreate(Sender: TObject); {Limpa o quadro}
+procedure TFormCliente.FormCreate(Sender: TObject); {Limpa o quadro}
 begin
   Quadro.Text := '';
 end;

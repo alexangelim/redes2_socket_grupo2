@@ -1,8 +1,8 @@
-object ChatFal: TChatFal
+object FormCliente: TFormCliente
   Left = 323
   Top = 237
   AutoSize = True
-  Caption = 'Chatezinho'
+  Caption = 'Cliente chat server  -> [ FormCliente ]'
   ClientHeight = 345
   ClientWidth = 528
   Color = clBtnFace
@@ -117,6 +117,7 @@ object ChatFal: TChatFal
     0000E0030000E0070000F0070000F0070000F80F0000FC1F0000FC1F0000FC1F
     0000FC1F0000FC3F0000FC3F0000}
   OldCreateOrder = False
+  Position = poDesktopCenter
   OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
@@ -137,17 +138,22 @@ object ChatFal: TChatFal
   object C_Comandos: TGroupBox
     Left = 0
     Top = 152
-    Width = 513
-    Height = 49
+    Width = 528
+    Height = 46
     Caption = 'Chat'
     TabOrder = 0
+    DesignSize = (
+      528
+      46)
     object C_Texto: TEdit
       Left = 8
       Top = 16
-      Width = 489
+      Width = 511
       Height = 21
+      Anchors = [akLeft, akTop, akRight]
       TabOrder = 0
       OnKeyDown = C_TextoKeyDown
+      ExplicitWidth = 496
     end
   end
   object Host: TEdit
@@ -159,22 +165,22 @@ object ChatFal: TChatFal
     Text = '127.0.0.1'
   end
   object Conectar: TButton
-    Left = 176
-    Top = 223
+    Left = 177
+    Top = 221
     Width = 75
-    Height = 17
+    Height = 23
     Caption = 'Conecta'
     TabOrder = 2
     OnClick = ConectarClick
   end
   object Servir: TButton
-    Left = 416
+    Left = 440
     Top = 213
     Width = 81
     Height = 33
     Caption = 'Iniciar Servidor'
     TabOrder = 3
-    OnClick = ServirClick
+    Visible = False
   end
   object Status: TMemo
     Left = 0
@@ -228,17 +234,6 @@ object ChatFal: TChatFal
     OnError = S_ClienteError
     Left = 368
     Top = 16
-  end
-  object S_Server: TServerSocket
-    Active = False
-    Port = 666
-    ServerType = stNonBlocking
-    OnListen = S_ServerListen
-    OnClientConnect = S_ServerClientConnect
-    OnClientDisconnect = S_ServerClientDisconnect
-    OnClientRead = S_ServerClientRead
-    Left = 368
-    Top = 48
   end
   object dxAlert: TdxAlertWindowManager
     LookAndFeel.NativeStyle = False

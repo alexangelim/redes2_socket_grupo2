@@ -1,7 +1,7 @@
 object Form1: TForm1
   Left = 0
   Top = 0
-  Caption = 'Form1'
+  Caption = 'Servidor Socket  -> [ FormServer ]'
   ClientHeight = 165
   ClientWidth = 507
   Color = clBtnFace
@@ -39,18 +39,15 @@ object Form1: TForm1
     ParentFont = False
     ScrollBars = ssVertical
     TabOrder = 1
-    ExplicitLeft = -6
-    ExplicitTop = 82
-    ExplicitWidth = 521
   end
-  object S_Server: TServerSocket
+  object Socket_Server: TServerSocket
     Active = False
     Port = 666
     ServerType = stNonBlocking
-    OnListen = S_ServerListen
-    OnClientConnect = S_ServerClientConnect
-    OnClientDisconnect = S_ServerClientDisconnect
-    OnClientRead = S_ServerClientRead
+    OnListen = Socket_ServerListen
+    OnClientConnect = Socket_ServerClientConnect
+    OnClientDisconnect = Socket_ServerClientDisconnect
+    OnClientRead = Socket_ServerClientRead
     Left = 232
     Top = 16
   end

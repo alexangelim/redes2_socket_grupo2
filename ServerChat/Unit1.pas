@@ -8,15 +8,15 @@ uses
 
 type
   TForm1 = class(TForm)
-    S_Server: TServerSocket;
+    Socket_Server: TServerSocket;
     Servir: TButton;
     Status: TMemo;
     procedure ServirClick(Sender: TObject);
-    procedure S_ServerClientConnect(Sender: TObject; Socket: TCustomWinSocket);
-    procedure S_ServerClientDisconnect(Sender: TObject;
+    procedure Socket_ServerClientConnect(Sender: TObject; Socket: TCustomWinSocket);
+    procedure Socket_ServerClientDisconnect(Sender: TObject;
       Socket: TCustomWinSocket);
-    procedure S_ServerClientRead(Sender: TObject; Socket: TCustomWinSocket);
-    procedure S_ServerListen(Sender: TObject; Socket: TCustomWinSocket);
+    procedure Socket_ServerClientRead(Sender: TObject; Socket: TCustomWinSocket);
+    procedure Socket_ServerListen(Sender: TObject; Socket: TCustomWinSocket);
   private
     { Private declarations }
   public
@@ -32,39 +32,33 @@ implementation
 
 procedure TForm1.ServirClick(Sender: TObject);
 begin
-  if S_Server.Active = True then
+  if Socket_Server.Active = True then  // Se o Server estiver ativo...
   begin
-    S_Server.Active := False;
+    Socket_Server.Active := False;
     Status.Lines.Add('Servidor ::> Servidor Desligado!');
     Servir.Caption := 'Iniciar Servidor';
-    //S_Cliente.Active := False;
-    //Host.Enabled := True;
-    //Conectar.Enabled := True;
+
   end
   else
   begin
-    S_Server.Active := True;
+    Socket_Server.Active := True;
     Servir.Caption := 'Parar Servidor';
-    //Host.Enabled := False;
-    //Conectar.Enabled := False;
-    //S_Cliente.Host := '127.0.0.1';
-    //S_Cliente.Active := True;
-   end;
+  end;
 end;
 
-procedure TForm1.S_ServerClientConnect(Sender: TObject;
+procedure TForm1.Socket_ServerClientConnect(Sender: TObject;
   Socket: TCustomWinSocket);
 begin
   Status.Lines.Add('Servidor ::> Usuário Conectado => '+ Socket.RemoteAddress);
 end;
 
-procedure TForm1.S_ServerClientDisconnect(Sender: TObject;
+procedure TForm1.Socket_ServerClientDisconnect(Sender: TObject;
   Socket: TCustomWinSocket);
 begin
   Status.Lines.Add('Servidor ::> Usuário Desconectado => '+ Socket.RemoteAddress);
 end;
 
-procedure TForm1.S_ServerClientRead(Sender: TObject; Socket: TCustomWinSocket);
+procedure TForm1.Socket_ServerClientRead(Sender: TObject; Socket: TCustomWinSocket);
   var texto: array[0..1] of string;
     temptexto: string;
     Index: integer;
@@ -100,7 +94,7 @@ begin
    end;
 end;
 
-procedure TForm1.S_ServerListen(Sender: TObject; Socket: TCustomWinSocket);
+procedure TForm1.Socket_ServerListen(Sender: TObject; Socket: TCustomWinSocket);
 begin
   Status.Lines.Add('Servidor ::> Servidor Ligado!');
 end;
