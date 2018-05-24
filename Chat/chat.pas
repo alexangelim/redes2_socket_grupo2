@@ -20,7 +20,13 @@ uses
   dxSkinValentine, dxSkinVisualStudio2013Blue, dxSkinVisualStudio2013Dark,
   dxSkinVisualStudio2013Light, dxSkinVS2010, dxSkinWhiteprint,
   dxSkinXmas2008Blue, cxClasses, dxAlertWindow, cxControls, cxLookAndFeels,
-  cxContainer, cxEdit, cxListBox;
+  cxContainer, cxEdit, cxListBox, cxStyles, dxSkinscxPCPainter, cxCustomData,
+  cxFilter, cxData, cxDataStorage, cxNavigator, Data.DB, cxDBData, cxGridLevel,
+  cxGridCustomTableView, cxGridTableView, cxGridDBTableView, cxGridCustomView,
+  cxGrid, Datasnap.DBClient, MidasLib, dxGDIPlusClasses,
+  Vcl.ExtCtrls, cxTextEdit, cxMaskEdit, cxDropDownEdit, cxLookupEdit,
+  cxDBLookupEdit, cxDBLookupComboBox, cxGroupBox, dxCheckGroupBox,
+  System.ImageList, Vcl.ImgList;
 
 type
   TFormCliente = class(TForm)
@@ -29,28 +35,41 @@ type
     Host: TEdit;
     Lbl_Servidor: TLabel;
     Conectar: TButton;
-    Servir: TButton;
     S_Cliente: TClientSocket;
-    Status: TMemo;
     Quadro: TMemo;
     Apelido: TEdit;
     Label1: TLabel;
     dxAlert: TdxAlertWindowManager;
-    cxListBox1: TcxListBox;
+    CDSClient: TClientDataSet;
+    CDSClientIndex: TIntegerField;
+    CDSClientIP: TStringField;
+    CDSClientApelido: TStringField;
+    DsClient: TDataSource;
+    cxGrid1: TcxGrid;
+    cxGrid1DBTableView1: TcxGridDBTableView;
+    Grid1ColIP: TcxGridDBColumn;
+    GridColNome: TcxGridDBColumn;
+    cxGrid1Level1: TcxGridLevel;
+    Image1: TImage;
+    Porta: TEdit;
+    Label2: TLabel;
+    GroupBoxPrivate: TdxCheckGroupBox;
+    ComboBoxPrvt: TcxLookupComboBox;
+    cxImageList1: TcxImageList;
     procedure S_ClienteConnect(Sender: TObject; Socket: TCustomWinSocket);
     procedure S_ClienteDisconnect(Sender: TObject; Socket: TCustomWinSocket);
-    procedure S_ClienteError(Sender: TObject; Socket: TCustomWinSocket; ErrorEvent: TErrorEvent; var ErrorCode: Integer);
     procedure S_ClienteRead(Sender: TObject; Socket: TCustomWinSocket);
     procedure ConectarClick(Sender: TObject);
     procedure C_TextoKeyDown(Sender: TObject; var Key: Word;  Shift: TShiftState);
-    procedure S_ServerListen(Sender: TObject; Socket: TCustomWinSocket);
-    procedure S_ServerClientConnect(Sender: TObject; Socket: TCustomWinSocket);
-    procedure S_ServerClientDisconnect(Sender: TObject; Socket: TCustomWinSocket);
     procedure FormCreate(Sender: TObject);
+    procedure Image1Click(Sender: TObject);
+    procedure FormShow(Sender: TObject);
   private
     { Private declarations }
   public
-    { Public declarations }
+    procedure EnviarMsg();
+    var vIp: String;
+    var vApelido: String;
   end;
 
 var
@@ -63,8 +82,8 @@ implementation
 procedure TFormCliente.S_ClienteConnect(Sender: TObject;
   Socket: TCustomWinSocket);
 begin
-  Status.Lines.Add('Cliente  ::> Conectado a: ' + S_Cliente.Host);
   Conectar.Caption := 'Desconectar';
+  Conectar.ImageIndex := 1;
   Apelido.Enabled := False;
   S_Cliente.Socket.SendText('NICK::::' + Apelido.Text);
 end;
@@ -72,28 +91,71 @@ end;
 {Procedimento de desconexão do cliente com o servidor }
 procedure TFormCliente.S_ClienteDisconnect(Sender: TObject; Socket: TCustomWinSocket);
 begin
-  Status.Lines.Add('Cliente  ::> Desconectado ');
-    Conectar.Caption := 'Conectar';
-    Apelido.Enabled := True;
+  Conectar.Caption := 'Conectar';
+  Conectar.ImageIndex := 0;
+  Apelido.Enabled := True;
+  CdsClient.EmptyDataSet;
 end;
 
 {Procedimento de ERRO de conexão }
-procedure TFormCliente.S_ClienteError(Sender: TObject; Socket: TCustomWinSocket; ErrorEvent: TErrorEvent; var ErrorCode: Integer);
-begin
-  Status.Lines.Add('Cliente  ::> ERRO ao tentar conectar a: ' + S_Cliente.Host);
-end;
-
 procedure TFormCliente.S_ClienteRead(Sender: TObject; Socket: TCustomWinSocket);
-  var
-    Mensagem : string;
+var
+  Mensagem,vParam,vQtd: string;
+  i: Integer;
 begin
   Mensagem := Socket.ReceiveText;
 
-  Quadro.Lines.Add(Mensagem);
-  if Pos('entrou', Mensagem) > 0 then
-    cxListBox1.Items.Add(Copy(Mensagem, 1,Pos('entrou', Mensagem)-1));
-end;
+  vParam := Copy(Mensagem, 1,Pos('::::', Mensagem) -1);
 
+  if vParam = 'CDS_LOAD' then
+  begin
+    vQtd := Copy(Mensagem, Pos('<QTD>', Mensagem) +5,Pos('</QTD>', Mensagem)- Pos('<QTD>', Mensagem)-5);
+    for i := 1 to StrToInt(vQtd) do
+    begin
+      CDSClient.Insert;
+      vIp := Copy(Mensagem, Pos('<IP'+IntToStr(i)+'>', Mensagem) +5,Pos('</IP'+IntToStr(i)+'>', Mensagem)- Pos('<IP'+IntToStr(i)+'>', Mensagem)-5);
+      vApelido := Copy(Mensagem, Pos('<AP'+IntToStr(i)+'>', Mensagem) +5,Pos('</AP'+IntToStr(i)+'>', Mensagem)- Pos('<AP'+IntToStr(i)+'>', Mensagem)-5);
+      CdsClient.FieldByName('IP').AsString := vIP;
+      CdsClient.FieldByName('Apelido').AsString := vApelido;
+      CDSClient.Post;
+    end;
+    CDSClient.Close;
+    CDSClient.Open;
+  end
+  else
+  begin
+    vIp := Copy(Mensagem, Pos('<IP>', Mensagem) +4,Pos('</IP>', Mensagem)- Pos('<IP>', Mensagem)-4);
+    vApelido := Copy(Mensagem, Pos('<AP>', Mensagem) +4,Pos('</AP>', Mensagem)- Pos('<AP>', Mensagem)-4);
+
+    if vParam = 'CDS_NEW' then
+    begin
+      CdsClient.Insert;
+      CdsClient.FieldByName('IP').AsString := vIP;
+      CdsClient.FieldByName('Apelido').AsString := vApelido;
+      CdsClient.Post;
+      CdsClient.Close;
+      CdsClient.Open;
+      Quadro.Lines.Add(vApelido+' entrou na sala');
+      dxalert.Show(vApelido,'Entrou na sala');
+    end
+    else if vParam = 'CDS_DEL' then
+    begin
+      CdsClient.Filter := ('IP = '+QuotedStr(vIp));
+      CdsClient.Filtered := True;
+      CdsClient.Delete;
+      CdsClient.Filtered := False;
+      CdsClient.Close;
+      CdsClient.Open;
+      dxalert.Show(vApelido,'Saiu na sala');
+    end
+    else if Pos('::::', Mensagem) < 1 then
+    begin
+      Quadro.Lines.Add(Mensagem);
+      vApelido := Copy(Mensagem, Pos('(', Mensagem) +1,Pos(')', Mensagem)- Pos('(', Mensagem)-1);
+      dxalert.Show(vApelido+' disse',Mensagem);
+    end;
+  end;
+end;
 {Ao clicar no botão "CONECTAR" o programa pega o IP digitado no campo
 { De servidor e tenta conectar ao servidor, caso de ERRO ele vai executar
 { o procedimento de ERRO de conexão, caso ocorra sucesso de conexão ele vai
@@ -104,11 +166,23 @@ begin
   begin
     S_Cliente.Active := False;
     Conectar.Caption := 'Conectar';
+    Conectar.ImageIndex := 0;
   end
   else
   begin
-    S_Cliente.Host := Host.Text;
-    S_Cliente.Active := True;
+    if Apelido.Text = '' then
+    begin
+      Application.MessageBox('Nenhum apelido informado', 'Assistente', mb_iconexclamation + mb_ok);
+      Apelido.SetFocus;
+      Abort;
+    end
+    else
+    begin
+      S_Cliente.Host := Host.Text;
+      S_Cliente.Port := StrToInt(Porta.Text);
+      S_Cliente.Active := True;
+      C_Texto.SetFocus;
+    end;
   end;
 end;
 
@@ -119,37 +193,46 @@ procedure TFormCliente.C_TextoKeyDown(Sender: TObject; var Key: Word;  Shift: TS
 begin
   if Key = VK_Return then
   begin
-    S_Cliente.Socket.SendText(C_Texto.Text + '::::' + Apelido.Text);
-    C_Texto.Text := '';
+    EnviarMsg;
   end;
-end;
-
-{ Procedimento executado logo apos o server começar a escutar a porta Padrão
-{ Uma mensagem eh enviada para a tela de status}
-procedure TFormCliente.S_ServerListen(Sender: TObject;
-  Socket: TCustomWinSocket);
-begin
-  Status.Lines.Add('Servidor ::> Servidor Ligado!');
-end;
-
-{ Procedimento do Servidor para quando um cliente se conecta}
-procedure TFormCliente.S_ServerClientConnect(Sender: TObject;
-  Socket: TCustomWinSocket);
-begin
-  Status.Lines.Add('Servidor ::> Usuário Conectado => '+ Socket.RemoteAddress);
-end;
-
-{ Procedimento do Servidor para quando um cliente se desconecta}
-procedure TFormCliente.S_ServerClientDisconnect(Sender: TObject;
-  Socket: TCustomWinSocket);
-begin
-   Status.Lines.Add('Servidor ::> Usuário Desconectado => '+ Socket.RemoteAddress);
 end;
 
 { Procedimento executado quando o servidor recebe dados dos clientes }
 procedure TFormCliente.FormCreate(Sender: TObject); {Limpa o quadro}
 begin
   Quadro.Text := '';
+end;
+
+procedure TFormCliente.FormShow(Sender: TObject);
+begin
+  Host.SetFocus;
+end;
+
+procedure TFormCliente.Image1Click(Sender: TObject);
+begin
+  EnviarMsg;
+end;
+
+procedure TFormCliente.EnviarMsg();
+begin
+  if GroupBoxPrivate.CheckBox.Checked then
+  begin
+    if ComboBoxPrvt.Text = '' then
+    begin
+      Application.MessageBox('Nenhum usuário selecionado, favor selecionar para continuar', 'Assistente', mb_iconexclamation + mb_ok);
+      ComboBoxPrvt.DroppedDown := True;
+      ComboBoxPrvt.SetFocus;
+      Abort;
+    end;
+    S_Cliente.Socket.SendText('MSG_PRVT::::<IP>'+ComboBoxPrvt.EditValue+'</IP><AP>'+
+                              Apelido.Text+'</AP><MSG>'+C_Texto.Text +'</MSG>');
+    C_Texto.Text := '';
+  end
+  else
+  begin
+    S_Cliente.Socket.SendText(C_Texto.Text + '::::' + Apelido.Text);
+    C_Texto.Text := '';
+  end;
 end;
 
 end.

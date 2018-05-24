@@ -1,0 +1,233 @@
+unit UFormServer;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, System.Win.ScktComp, Vcl.StdCtrls,
+  Vcl.WinXCtrls, cxGraphics, cxControls, cxLookAndFeels, cxLookAndFeelPainters,
+  dxSkinsCore, dxSkinBlack, dxSkinBlue, dxSkinBlueprint, dxSkinCaramel,
+  dxSkinCoffee, dxSkinDarkRoom, dxSkinDarkSide, dxSkinDevExpressDarkStyle,
+  dxSkinDevExpressStyle, dxSkinFoggy, dxSkinGlassOceans, dxSkinHighContrast,
+  dxSkiniMaginary, dxSkinLilian, dxSkinLiquidSky, dxSkinLondonLiquidSky,
+  dxSkinMcSkin, dxSkinMetropolis, dxSkinMetropolisDark, dxSkinMoneyTwins,
+  dxSkinOffice2007Black, dxSkinOffice2007Blue, dxSkinOffice2007Green,
+  dxSkinOffice2007Pink, dxSkinOffice2007Silver, dxSkinOffice2010Black,
+  dxSkinOffice2010Blue, dxSkinOffice2010Silver, dxSkinOffice2013DarkGray,
+  dxSkinOffice2013LightGray, dxSkinOffice2013White, dxSkinOffice2016Colorful,
+  dxSkinOffice2016Dark, dxSkinPumpkin, dxSkinSeven, dxSkinSevenClassic,
+  dxSkinSharp, dxSkinSharpPlus, dxSkinSilver, dxSkinSpringTime, dxSkinStardust,
+  dxSkinSummer2008, dxSkinTheAsphaltWorld, dxSkinsDefaultPainters,
+  dxSkinValentine, dxSkinVisualStudio2013Blue, dxSkinVisualStudio2013Dark,
+  dxSkinVisualStudio2013Light, dxSkinVS2010, dxSkinWhiteprint,
+  dxSkinXmas2008Blue, cxContainer, cxEdit, cxListBox, Data.DB, Datasnap.DBClient,
+  cxStyles, dxSkinscxPCPainter, cxCustomData, cxFilter, cxData, cxDataStorage,
+  cxNavigator, cxDBData, cxGridCustomTableView, cxGridTableView,
+  cxGridDBTableView, cxGridLevel, cxClasses, cxGridCustomView, cxGrid,
+  Vcl.Buttons, cxDataControllerConditionalFormattingRulesManagerDialog ;
+
+type
+  TForm1 = class(TForm)
+    Socket_Server: TServerSocket;
+    Status: TMemo;
+    ToggleSwitch1: TToggleSwitch;
+    CDSServer: TClientDataSet;
+    cxGrid1DBTableView1: TcxGridDBTableView;
+    cxGrid1Level1: TcxGridLevel;
+    cxGrid1: TcxGrid;
+    DsServer: TDataSource;
+    Grid1ColIP: TcxGridDBColumn;
+    GridColNome: TcxGridDBColumn;
+    CDSServerIndex: TIntegerField;
+    CDSServerIP: TStringField;
+    CDSServerApelido: TStringField;
+    procedure ServirClick(Sender: TObject);
+    procedure Socket_ServerClientConnect(Sender: TObject; Socket: TCustomWinSocket);
+    procedure Socket_ServerClientDisconnect(Sender: TObject;
+      Socket: TCustomWinSocket);
+    procedure Socket_ServerClientRead(Sender: TObject; Socket: TCustomWinSocket);
+    procedure Socket_ServerListen(Sender: TObject; Socket: TCustomWinSocket);
+    procedure ToggleSwitch1Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+  private
+
+  public
+    { Public declarations }
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  CdsServer.Open;
+end;
+
+procedure TForm1.ServirClick(Sender: TObject);
+begin
+  //Liga e Desliga o servidor controlando o texto do botão
+  if Socket_Server.Active = True then
+  begin
+    Socket_Server.Active := False;
+    Status.Lines.Add('Servidor ::> Servidor Desligado!');
+  end
+  else
+  begin
+    Socket_Server.Active := True;
+  end;
+end;
+
+procedure TForm1.Socket_ServerClientConnect(Sender: TObject;
+  Socket: TCustomWinSocket);
+begin
+  //Grava no log o IP do cliente quando ele conecta
+  Status.Lines.Add('Servidor ::> Usuário Conectado => '+ Socket.RemoteAddress);
+end;
+
+procedure TForm1.Socket_ServerClientDisconnect(Sender: TObject;
+  Socket: TCustomWinSocket);
+var Index: Integer;
+begin
+  //Grava no Log que o usuario desconectou
+  Status.Lines.Add('Servidor ::> Usuário Desconectado => '+ Socket.RemoteAddress);
+
+  //Retira usuario da tabela virtual
+  CdsServer.Filter := ('IP = '+QuotedStr(Socket.RemoteAddress));
+  CdsServer.Filtered := True;
+  CdsServer.Delete;
+  CdsServer.Filtered := False;
+  CdsServer.Close;
+  CdsServer.Open;
+
+  //Envia para as conexões ativas que o usuario saiu
+  with Socket_Server.Socket do
+  begin
+    for Index := 0 to ActiveConnections-1 do
+    begin
+      Connections[Index].SendText('CDS_DEL::::<IP>'+Socket.RemoteAddress+'</IP>');
+    end;
+  end;
+end;
+
+procedure TForm1.Socket_ServerClientRead(Sender: TObject; Socket: TCustomWinSocket);
+  var texto: array[0..1] of string;
+      temptexto,vText,vApelido,vIP,Mensagem: string;
+      Index, i: integer;
+
+      procedure P_InsereClienteCDS(IP, Apelido : string);
+      begin
+        CDSServer.Close;
+        CDSServer.Open;
+        CDSServer.Insert;
+        CDSServer.FieldByName('IP').AsString      := IP;
+        CDSServer.FieldByName('APELIDO').AsString := Apelido;
+        CDSServer.Post;
+      end;
+begin
+  //Recebe  texto enviado pelo cliente
+  temptexto := Socket.ReceiveText;
+  //Verifica se existe um parametro passado pelo cliente
+  texto[0] := Copy(temptexto, 1,Pos('::::', temptexto) -1);
+  //Grava o conteudo sem o parametro informado
+  texto[1] := Copy(temptexto, Pos('::::', temptexto) + Length('::::'),Length(temptexto));
+
+  //Verifica se o parametro informado é NICK (primeira vez que o cliente conecta)
+  if texto[0] = 'NICK' then
+  begin
+    with Socket_Server.Socket do
+    begin
+      //Grava na Tabela virtual quem conectou IP e Apelido
+      P_InsereClienteCDS(Socket.RemoteAddress, texto[1]);
+
+      CdsServer.Close;
+      CdsServer.Open;
+
+      for Index := 0 to ActiveConnections-1 do
+      begin
+        //Verifica qual é IP que acabou de conectar
+        if Connections[Index].RemoteAddress = Socket.RemoteAddress then
+        begin
+          //Envia todos os dados da tabela virtual para o cliente monta uma string com tags
+          vText:=('CDS_LOAD::::');
+          vText:=vText+('<QTD>'+IntToStr(CdsServer.RecordCount)+'</QTD>');
+          CDSServer.First;
+          for i := 1 to CdsServer.RecordCount do
+          begin
+            vText:=vText+('<IP'+IntToStr(i)+'>'+CdsServer.FieldByName('IP').AsString+'</IP'+IntToStr(i)+'>');
+            vText:=vText+('<AP'+IntToStr(i)+'>'+CdsServer.FieldByName('Apelido').AsString+'</AP'+IntToStr(i)+'>');
+            CDSServer.Next;
+          end;
+          Connections[Index].SendText(vText);
+        end
+        else
+        //Se nao for ip que acabou de conectar avisa para os outros client inserir na tabela virtual quem conectou
+        begin
+          Connections[Index].SendText('CDS_NEW::::<IP>'+Socket.RemoteAddress+'</IP><AP>'+texto[1]+'</AP>');
+        end;
+      end;
+    end;
+
+  end
+  //Se não for primeira conexão verifica se é privada a mensagem
+  else if texto[0] = 'MSG_PRVT' then
+  begin
+    //Varre a string e extrai IP, Apelido e texto da mensagem
+    vIp := Copy(Mensagem, Pos('<IP>', Mensagem) +4,Pos('</IP>', Mensagem)- Pos('<IP>', Mensagem)-4);
+    vApelido := Copy(Mensagem, Pos('<AP>', Mensagem) +4,Pos('</AP>', Mensagem)- Pos('<AP>', Mensagem)-4);
+    Mensagem := Copy(Mensagem, Pos('<MSG>', Mensagem) +5,Pos('</AP>', Mensagem)- Pos('<AP>', Mensagem)-5);
+
+    with Socket_Server.Socket do
+    begin
+      for Index := 0 to ActiveConnections-1 do
+      begin
+        //Percorre conexões ativas e verifica qual o IP de destindo do texto
+        if Connections[Index].RemoteAddress = vIP then
+        begin
+          //Envia texto privado e grava no log
+          Connections[Index].SendText('(' + vApelido + ') escreveu privado para você: ' + Mensagem);
+          Status.Lines.Add('Servidor ::> ' + vApelido + ' (' + Socket.RemoteAddress + ') escreveu privado para '+
+          vIp+' : '+ Mensagem);
+        end
+      end;
+    end;
+  end
+  //Senão, é uma mensagem normal
+  else
+  begin
+    with Socket_Server.Socket do
+    begin
+      //Percorre as conexões ativas e envia a mensagem para todos (BroadCast)
+      for Index := 0 to ActiveConnections-1 do
+      begin
+        Connections[Index].SendText('(' + texto[1] + ') escreveu: ' + texto[0]);
+      end;
+    end;
+    //Grava no Log a troca de mensagem
+    Status.Lines.Add('Servidor ::> ' + texto[1] + ' (' + Socket.RemoteAddress + ') escreveu: '+ texto[0]);
+  end;
+end;
+
+procedure TForm1.Socket_ServerListen(Sender: TObject; Socket: TCustomWinSocket);
+begin
+  //Grava no log quando servidor liga
+  Status.Lines.Add('Servidor ::> Servidor Ligado!');
+end;
+
+procedure TForm1.ToggleSwitch1Click(Sender: TObject);
+begin
+  //Liga e Desliga o Servidor
+  if Socket_Server.Active = True then
+  begin
+    Socket_Server.Active := False;
+    Status.Lines.Add('Servidor ::> Servidor Desligado!');
+  end
+  else
+  begin
+    Socket_Server.Active := True;
+  end;
+end;
+end.

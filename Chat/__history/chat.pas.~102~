@@ -1,0 +1,221 @@
+unit chat;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, ScktComp, cxLookAndFeelPainters, cxGraphics, dxSkinsCore,
+  dxSkinBlack, dxSkinBlue, dxSkinBlueprint, dxSkinCaramel, dxSkinCoffee,
+  dxSkinDarkRoom, dxSkinDarkSide, dxSkinDevExpressDarkStyle,
+  dxSkinDevExpressStyle, dxSkinFoggy, dxSkinGlassOceans, dxSkinHighContrast,
+  dxSkiniMaginary, dxSkinLilian, dxSkinLiquidSky, dxSkinLondonLiquidSky,
+  dxSkinMcSkin, dxSkinMetropolis, dxSkinMetropolisDark, dxSkinMoneyTwins,
+  dxSkinOffice2007Black, dxSkinOffice2007Blue, dxSkinOffice2007Green,
+  dxSkinOffice2007Pink, dxSkinOffice2007Silver, dxSkinOffice2010Black,
+  dxSkinOffice2010Blue, dxSkinOffice2010Silver, dxSkinOffice2013DarkGray,
+  dxSkinOffice2013LightGray, dxSkinOffice2013White, dxSkinOffice2016Colorful,
+  dxSkinOffice2016Dark, dxSkinPumpkin, dxSkinSeven, dxSkinSevenClassic,
+  dxSkinSharp, dxSkinSharpPlus, dxSkinSilver, dxSkinSpringTime, dxSkinStardust,
+  dxSkinSummer2008, dxSkinTheAsphaltWorld, dxSkinsDefaultPainters,
+  dxSkinValentine, dxSkinVisualStudio2013Blue, dxSkinVisualStudio2013Dark,
+  dxSkinVisualStudio2013Light, dxSkinVS2010, dxSkinWhiteprint,
+  dxSkinXmas2008Blue, cxClasses, dxAlertWindow, cxControls, cxLookAndFeels,
+  cxContainer, cxEdit, cxListBox, cxStyles, dxSkinscxPCPainter, cxCustomData,
+  cxFilter, cxData, cxDataStorage, cxNavigator, Data.DB, cxDBData, cxGridLevel,
+  cxGridCustomTableView, cxGridTableView, cxGridDBTableView, cxGridCustomView,
+  cxGrid, Datasnap.DBClient, MidasLib,
+  cxDataControllerConditionalFormattingRulesManagerDialog, dxGDIPlusClasses,
+  Vcl.ExtCtrls;
+
+type
+  TFormCliente = class(TForm)
+    C_Comandos: TGroupBox;
+    C_Texto: TEdit;
+    Host: TEdit;
+    Lbl_Servidor: TLabel;
+    Conectar: TButton;
+    S_Cliente: TClientSocket;
+    Quadro: TMemo;
+    Apelido: TEdit;
+    Label1: TLabel;
+    dxAlert: TdxAlertWindowManager;
+    CDSClient: TClientDataSet;
+    CDSClientIndex: TIntegerField;
+    CDSClientIP: TStringField;
+    CDSClientApelido: TStringField;
+    DsClient: TDataSource;
+    cxGrid1: TcxGrid;
+    cxGrid1DBTableView1: TcxGridDBTableView;
+    Grid1ColIP: TcxGridDBColumn;
+    GridColNome: TcxGridDBColumn;
+    cxGrid1Level1: TcxGridLevel;
+    Image1: TImage;
+    Edit1: TEdit;
+    Label2: TLabel;
+    procedure S_ClienteConnect(Sender: TObject; Socket: TCustomWinSocket);
+    procedure S_ClienteDisconnect(Sender: TObject; Socket: TCustomWinSocket);
+    procedure S_ClienteError(Sender: TObject; Socket: TCustomWinSocket; ErrorEvent: TErrorEvent; var ErrorCode: Integer);
+    procedure S_ClienteRead(Sender: TObject; Socket: TCustomWinSocket);
+    procedure ConectarClick(Sender: TObject);
+    procedure C_TextoKeyDown(Sender: TObject; var Key: Word;  Shift: TShiftState);
+    procedure S_ServerListen(Sender: TObject; Socket: TCustomWinSocket);
+    procedure S_ServerClientConnect(Sender: TObject; Socket: TCustomWinSocket);
+    procedure S_ServerClientDisconnect(Sender: TObject; Socket: TCustomWinSocket);
+    procedure FormCreate(Sender: TObject);
+    procedure CDSClientAfterInsert(DataSet: TDataSet);
+  private
+    { Private declarations }
+  public
+    vIp: String;
+    vApelido: String;
+  end;
+
+var
+  FormCliente: TFormCliente;
+implementation
+
+{$R *.dfm}
+
+{Procedimento de conexão do cliente ao servidor }
+procedure TFormCliente.S_ClienteConnect(Sender: TObject;
+  Socket: TCustomWinSocket);
+begin
+  Conectar.Caption := 'Desconectar';
+  Apelido.Enabled := False;
+  S_Cliente.Socket.SendText('NICK::::' + Apelido.Text);
+end;
+
+{Procedimento de desconexão do cliente com o servidor }
+procedure TFormCliente.S_ClienteDisconnect(Sender: TObject; Socket: TCustomWinSocket);
+begin
+  Conectar.Caption := 'Conectar';
+  Apelido.Enabled := True;
+  CdsClient.EmptyDataSet;
+end;
+
+{Procedimento de ERRO de conexão }
+procedure TFormCliente.S_ClienteError(Sender: TObject; Socket: TCustomWinSocket; ErrorEvent: TErrorEvent; var ErrorCode: Integer);
+begin
+  Status.Lines.Add('Cliente  ::> ERRO ao tentar conectar a: ' + S_Cliente.Host);
+end;
+
+procedure TFormCliente.S_ClienteRead(Sender: TObject; Socket: TCustomWinSocket);
+var
+  Mensagem,vParam,vQtd: string;
+  i: Integer;
+begin
+  Mensagem := Socket.ReceiveText;
+
+  vParam := Copy(Mensagem, 1,Pos('::::', Mensagem) -1);
+
+  if vParam = 'CDS_LOAD' then
+  begin
+    vQtd := Copy(Mensagem, Pos('<QTD>', Mensagem) +5,Pos('</QTD>', Mensagem)- Pos('<QTD>', Mensagem)-5);
+    for i := 1 to StrToInt(vQtd) do
+    begin
+      CDSClient.Insert;
+      vIp := Copy(Mensagem, Pos('<IP'+IntToStr(i)+'>', Mensagem) +5,Pos('</IP'+IntToStr(i)+'>', Mensagem)- Pos('<IP'+IntToStr(i)+'>', Mensagem)-5);
+      vApelido := Copy(Mensagem, Pos('<AP'+IntToStr(i)+'>', Mensagem) +5,Pos('</AP'+IntToStr(i)+'>', Mensagem)- Pos('<AP'+IntToStr(i)+'>', Mensagem)-5);
+      CdsClient.FieldByName('IP').AsString := vIP;
+      CdsClient.FieldByName('Apelido').AsString := vApelido;
+      CDSClient.Post;
+    end;
+    CDSClient.Close;
+    CDSClient.Open;
+  end
+  else
+  begin
+    vIp := Copy(Mensagem, Pos('<IP>', Mensagem) +4,Pos('</IP>', Mensagem)- Pos('<IP>', Mensagem)-4);
+    vApelido := Copy(Mensagem, Pos('<AP>', Mensagem) +4,Pos('</AP>', Mensagem)- Pos('<AP>', Mensagem)-4);
+
+    if vParam = 'CDS_NEW' then
+    begin
+      CdsClient.Insert;
+      CdsClient.FieldByName('IP').AsString := vIP;
+      CdsClient.FieldByName('Apelido').AsString := vApelido;
+      CdsClient.Post;
+      CdsClient.Close;
+      CdsClient.Open;
+      dxalert.Show(vApelido,'Entrou na sala');
+    end
+    else if vParam = 'CDS_DEL' then
+    begin
+      CdsClient.Filter := ('IP = '+QuotedStr(vIp));
+      CdsClient.Filtered := True;
+      CdsClient.Delete;
+      CdsClient.Filtered := False;
+      CdsClient.Close;
+      CdsClient.Open;
+      dxalert.Show(vApelido,'Saiu na sala');
+    end
+    else if Pos('::::', Mensagem) < 1 then
+    begin
+      Quadro.Lines.Add(Mensagem);
+      dxalert.Show(vApelido+' disse',Mensagem);
+    end;
+  end;
+end;
+{Ao clicar no botão "CONECTAR" o programa pega o IP digitado no campo
+{ De servidor e tenta conectar ao servidor, caso de ERRO ele vai executar
+{ o procedimento de ERRO de conexão, caso ocorra sucesso de conexão ele vai
+{ executar o procedimento OnConnect}
+procedure TFormCliente.CDSClientAfterInsert(DataSet: TDataSet);
+begin
+  Quadro.Lines.Add(vApelido+' entrou na sala');
+end;
+
+procedure TFormCliente.ConectarClick(Sender: TObject);
+begin
+  if S_Cliente.Active then
+  begin
+    S_Cliente.Active := False;
+    Conectar.Caption := 'Conectar';
+  end
+  else
+  begin
+    S_Cliente.Host := Host.Text;
+    S_Cliente.Active := True;
+  end;
+end;
+
+{ Este Procedimento serve para quando for digitado a tecla [ENTER] envie
+{ o texto do campo de MENSAGEM para  o servidor, facilitando o uso
+{ do chat.}
+procedure TFormCliente.C_TextoKeyDown(Sender: TObject; var Key: Word;  Shift: TShiftState);
+begin
+  if Key = VK_Return then
+  begin
+    S_Cliente.Socket.SendText(C_Texto.Text + '::::' + Apelido.Text);
+    C_Texto.Text := '';
+  end;
+end;
+
+{ Procedimento executado logo apos o server começar a escutar a porta Padrão
+{ Uma mensagem eh enviada para a tela de status}
+procedure TFormCliente.S_ServerListen(Sender: TObject;
+  Socket: TCustomWinSocket);
+begin
+  Status.Lines.Add('Servidor ::> Servidor Ligado!');
+end;
+
+{ Procedimento do Servidor para quando um cliente se conecta}
+procedure TFormCliente.S_ServerClientConnect(Sender: TObject;
+  Socket: TCustomWinSocket);
+begin
+  Status.Lines.Add('Servidor ::> Usuário Conectado => '+ Socket.RemoteAddress);
+end;
+
+{ Procedimento do Servidor para quando um cliente se desconecta}
+procedure TFormCliente.S_ServerClientDisconnect(Sender: TObject;
+  Socket: TCustomWinSocket);
+begin
+   Status.Lines.Add('Servidor ::> Usuário Desconectado => '+ Socket.RemoteAddress);
+end;
+
+{ Procedimento executado quando o servidor recebe dados dos clientes }
+procedure TFormCliente.FormCreate(Sender: TObject); {Limpa o quadro}
+begin
+  Quadro.Text := '';
+end;
+
+end.
